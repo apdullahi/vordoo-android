@@ -1,7 +1,7 @@
 name: vordoo
 description: Vordoo - PDF reader, annotator and editor.
 publish_to: none
-version: 1.0.0+1
+version: 1.2.0+3
 environment:
   sdk: ">=3.3.0 <4.0.0"
 dependencies:
@@ -11,6 +11,12 @@ dependencies:
   pdf: ^3.11.0
   printing: ^5.13.0
   file_picker: ^8.1.2
+  image_picker: ^1.1.2
+  shared_preferences: ^2.3.2
+  path_provider: ^2.1.4
+  scrollable_positioned_list: ^0.3.8
+  share_plus: ^10.1.2
+  syncfusion_flutter_pdf: ^27.1.0
 dev_dependencies:
   flutter_lints: ^4.0.0
 flutter:
