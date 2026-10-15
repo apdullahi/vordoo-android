@@ -1,24 +1,13 @@
-
 name: Build Vordoo APK
-
 on:
   push:
-    branches: [main]
-  pull_request:
-    branches: [main]
   workflow_dispatch:
-
-permissions:
-  contents: read
-
 jobs:
   build:
     name: Build Android APK
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout source
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
       - name: Set up Java
         uses: actions/setup-java@v4
@@ -33,40 +22,34 @@ jobs:
           cache: true
 
       - name: Generate Android project
-        run: flutter create --platforms=android .
+        run: |
+          flutter create . --project-name vordoo --org app.vordoo --platforms android
+          sed -i 's/android:label="[^"]*"/android:label="Vordoo"/' android/app/src/main/AndroidManifest.xml
+
+      - name: Open PDFs from other apps
+        continue-on-error: true
+        run: |
+          python3 - <<'PY'
+          p='android/app/src/main/AndroidManifest.xml'
+          s=open(p).read()
+          f='<intent-filter><action android:name="android.intent.action.VIEW"/><category android:name="android.intent.category.DEFAULT"/><category android:name="android.intent.category.BROWSABLE"/><data android:scheme="content" android:mimeType="application/pdf"/><data android:scheme="file" android:mimeType="application/pdf"/></intent-filter>'
+          open(p,'w').write(s.replace('</activity>', f+'</activity>', 1))
+          PY
+          mkdir -p android/app/src/main/kotlin/app/vordoo/vordoo
+          cp tool/MainActivity.kt android/app/src/main/kotlin/app/vordoo/vordoo/MainActivity.kt
 
       - name: Install Android SDK 36
+        continue-on-error: true
         run: |
-          yes | sdkmanager --licenses
-          sdkmanager "platforms;android-36"
+          SDKM="${ANDROID_HOME:-/usr/local/lib/android/sdk}/cmdline-tools/latest/bin/sdkmanager"
+          yes | sudo env "PATH=$PATH" "JAVA_HOME=$JAVA_HOME" "$SDKM" --licenses > /dev/null || true
+          sudo env "PATH=$PATH" "JAVA_HOME=$JAVA_HOME" "$SDKM" "platforms;android-36" "build-tools;36.0.0"
 
       - name: Set compileSdk to 36
         run: |
-          python3 - <<'PY'
-          from pathlib import Path
-          import re
-
-          p = Path("android/app/build.gradle")
-          if not p.exists():
-              raise SystemExit("Missing android/app/build.gradle")
-
-          s = p.read_text()
-          s, count = re.subn(
-              r'(?m)^(\s*)compileSdkVersion\s+.*$',
-              r'\g<1>compileSdkVersion 36',
-              s
-          )
-          if count == 0:
-              s, count = re.subn(
-                  r'(?m)^(\s*)compileSdk\s+.*$',
-                  r'\g<1>compileSdk 36',
-                  s
-              )
-          if count == 0:
-              raise SystemExit("Could not find compileSdk setting")
-          p.write_text(s)
-          print("Updated compileSdk to 36")
-          PY
+          for f in android/app/build.gradle android/app/build.gradle.kts; do
+            if [ -f "$f" ]; then sed -i -E 's/compileSdk(Version)?[ =]+[^ ]+/compileSdk = 36/' "$f"; fi
+          done
 
       - name: Install dependencies
         run: flutter pub get
@@ -74,9 +57,19 @@ jobs:
       - name: Build debug APK
         run: flutter build apk --debug
 
-      - name: Upload APK
+      - name: Upload debug APK
         uses: actions/upload-artifact@v4
         with:
-          name: vordoo-apk
+          name: vordoo-debug-apk
           path: build/app/outputs/flutter-apk/app-debug.apk
-          if-no-files-found: error
+
+      - name: Build release APK
+        continue-on-error: true
+        run: flutter build apk --release --no-shrink
+
+      - name: Upload release APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: vordoo-release-apk
+          path: build/app/outputs/flutter-apk/app-release.apk
+          if-no-files-found: ignore
