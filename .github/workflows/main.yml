@@ -32,6 +32,9 @@ jobs:
           channel: stable
           cache: true
 
+      - name: Generate Android project
+        run: flutter create --platforms=android .
+
       - name: Install dependencies
         run: flutter pub get
 
@@ -44,4 +47,3 @@ jobs:
           name: vordoo-apk
           path: build/app/outputs/flutter-apk/app-debug.apk
           if-no-files-found: error
-
