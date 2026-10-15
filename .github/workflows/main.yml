@@ -35,6 +35,39 @@ jobs:
       - name: Generate Android project
         run: flutter create --platforms=android .
 
+      - name: Install Android SDK 36
+        run: |
+          yes | sdkmanager --licenses
+          sdkmanager "platforms;android-36"
+
+      - name: Set compileSdk to 36
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+
+          p = Path("android/app/build.gradle")
+          if not p.exists():
+              raise SystemExit("Missing android/app/build.gradle")
+
+          s = p.read_text()
+          s, count = re.subn(
+              r'(?m)^(\s*)compileSdkVersion\s+.*$',
+              r'\g<1>compileSdkVersion 36',
+              s
+          )
+          if count == 0:
+              s, count = re.subn(
+                  r'(?m)^(\s*)compileSdk\s+.*$',
+                  r'\g<1>compileSdk 36',
+                  s
+              )
+          if count == 0:
+              raise SystemExit("Could not find compileSdk setting")
+          p.write_text(s)
+          print("Updated compileSdk to 36")
+          PY
+
       - name: Install dependencies
         run: flutter pub get
 
